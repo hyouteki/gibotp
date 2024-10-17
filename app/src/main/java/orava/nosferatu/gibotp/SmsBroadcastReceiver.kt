@@ -8,6 +8,9 @@ import android.telephony.SmsMessage
 import android.util.Log
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import java.util.regex.Pattern
+import androidx.work.Data
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 
 class SmsBroadcastReceiver: BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
@@ -18,14 +21,28 @@ class SmsBroadcastReceiver: BroadcastReceiver() {
                 for (protocolDataUnit in protocolDataUnits) {
                     val format = bundle.getString("format")
                     val smsMessage = SmsMessage.createFromPdu(protocolDataUnit as ByteArray, format)
-                    val sender = smsMessage.displayOriginatingAddress
                     val messageBody = smsMessage.messageBody
                     val otp = extractOtp(messageBody)
-                    Log.d("SmsReceiver", "OTP extracted: $otp")
-                    val localIntent = Intent("otp_received")
-                    localIntent.putExtra("otp", otp)
-                    context?.let {
-                        LocalBroadcastManager.getInstance(it).sendBroadcast(localIntent)
+                    if (otp.isNotEmpty()) {
+                        Log.d("SmsReceiver", "OTP extracted: $otp")
+
+                        val data = Data.Builder()
+                            .putString("otp", otp)
+                            .build()
+
+                        val sendOtpWork = OneTimeWorkRequestBuilder<SendOtpWorker>()
+                            .setInputData(data)
+                            .build()
+
+                        context?.let {
+                            WorkManager.getInstance(it).enqueue(sendOtpWork)
+                        }
+
+                        val localIntent = Intent("otp_received")
+                        localIntent.putExtra("otp", otp)
+                        context?.let {
+                            LocalBroadcastManager.getInstance(it).sendBroadcast(localIntent)
+                        }
                     }
                 }
             }
