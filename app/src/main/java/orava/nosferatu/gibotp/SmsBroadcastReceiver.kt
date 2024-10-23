@@ -1,5 +1,6 @@
 package orava.nosferatu.gibotp
 
+import android.app.ActivityManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -26,27 +27,22 @@ class SmsBroadcastReceiver: BroadcastReceiver() {
                     if (otp.isNotEmpty()) {
                         Log.d("SmsReceiver", "OTP extracted: $otp")
 
-                        val sharedPreferences = context?.getSharedPreferences("MyPreferences", Context.MODE_PRIVATE)
+                        val sharedPreferences = context?.getSharedPreferences("Settings@gibotp", Context.MODE_PRIVATE)
                         val isBackgroundServiceEnabled = sharedPreferences?.getBoolean("background_service", false) ?: false
 
-                        if (isBackgroundServiceEnabled) {
-                            val data = Data.Builder()
-                                .putString("otp", otp)
-                                .build()
-
-                            val sendOtpWork = OneTimeWorkRequestBuilder<SendOtpWorker>()
-                                .setInputData(data)
-                                .build()
-
-                            context?.let {
-                                WorkManager.getInstance(it).enqueue(sendOtpWork)
+                        // If App is running in background, check if switch is enabled
+                        if (!isAppInForeground(context)) {
+                            if (isBackgroundServiceEnabled) {
+                                sendOtpToBackground(context, otp)
                             }
-                        }
-
-                        val localIntent = Intent("otp_received")
-                        localIntent.putExtra("otp", otp)
-                        context?.let {
-                            LocalBroadcastManager.getInstance(it).sendBroadcast(localIntent)
+                        } else {
+                            // App is running in the foreground
+                            val localIntent = Intent("otp_received")
+                            localIntent.putExtra("otp", otp)
+                            context?.let {
+                                LocalBroadcastManager.getInstance(it).sendBroadcast(localIntent)
+                            }
+                            sendOtpToBackground(context, otp)
                         }
                     }
                 }
@@ -58,5 +54,26 @@ class SmsBroadcastReceiver: BroadcastReceiver() {
         val pattern = Pattern.compile("(\\d{4,6})")  // Assuming OTP is 4-6 digits
         val matcher = pattern.matcher(message)
         return if (matcher.find()) matcher.group(0) ?: "" else ""
+    }
+
+    private fun sendOtpToBackground(context: Context?, otp: String) {
+        val data = Data.Builder().putString("otp", otp).build()
+        val sendOtpWork = OneTimeWorkRequestBuilder<SendOtpWorker>()
+            .setInputData(data).build()
+        context?.let {
+            WorkManager.getInstance(it).enqueue(sendOtpWork)
+        }
+    }
+
+    private fun isAppInForeground(context: Context?): Boolean {
+        val activityManager = context?.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val runningAppProcesses = activityManager.runningAppProcesses ?: return false
+
+        for (appProcess in runningAppProcesses) {
+            if (appProcess.processName == context.packageName) {
+                return appProcess.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+            }
+        }
+        return false
     }
 }
