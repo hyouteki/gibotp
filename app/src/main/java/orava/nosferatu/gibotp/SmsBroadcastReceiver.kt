@@ -26,16 +26,21 @@ class SmsBroadcastReceiver: BroadcastReceiver() {
                     if (otp.isNotEmpty()) {
                         Log.d("SmsReceiver", "OTP extracted: $otp")
 
-                        val data = Data.Builder()
-                            .putString("otp", otp)
-                            .build()
+                        val sharedPreferences = context?.getSharedPreferences("MyPreferences", Context.MODE_PRIVATE)
+                        val isBackgroundServiceEnabled = sharedPreferences?.getBoolean("background_service", false) ?: false
 
-                        val sendOtpWork = OneTimeWorkRequestBuilder<SendOtpWorker>()
-                            .setInputData(data)
-                            .build()
+                        if (isBackgroundServiceEnabled) {
+                            val data = Data.Builder()
+                                .putString("otp", otp)
+                                .build()
 
-                        context?.let {
-                            WorkManager.getInstance(it).enqueue(sendOtpWork)
+                            val sendOtpWork = OneTimeWorkRequestBuilder<SendOtpWorker>()
+                                .setInputData(data)
+                                .build()
+
+                            context?.let {
+                                WorkManager.getInstance(it).enqueue(sendOtpWork)
+                            }
                         }
 
                         val localIntent = Intent("otp_received")

@@ -2,4 +2,5 @@
     <string name="app_name">gibotp</string>
     <string name="otp_text_view_hint">Extracted OTP will appear here</string>
     <string name="android_emulator_hint">Use android emulator to simulate SMS</string>
+    <string name="settings">Settings</string>
 </resources>

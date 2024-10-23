@@ -13,19 +13,25 @@ import java.io.IOException
 class SendOtpWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
 
     companion object {
-        const val SERVER_URL: String = "http://10.0.2.2:3000/receive_otp"
         val MEDIA_TYPE_JSON = "application/json; charset=utf-8".toMediaType()
     }
 
     override fun doWork(): Result {
+        val sharedPreferences = applicationContext.getSharedPreferences("Settings@gibotp", Context.MODE_PRIVATE)
+
         val otp = inputData.getString("otp") ?: return Result.failure()
         val json = JSONObject().apply {
             put("otp", otp)
         }
 
+        val ip = sharedPreferences.getString("remote_ip", "10.0.2.2")
+        val port = sharedPreferences.getString("remote_port", "3000")
+        val endpoint = sharedPreferences.getString("remote_endpoint", "receive_otp")
+        val serverUrl = "http://$ip:$port/$endpoint"
+
         val requestBody = json.toString().toRequestBody(MEDIA_TYPE_JSON)
         val request = Request.Builder()
-            .url(SERVER_URL)
+            .url(serverUrl)
             .post(requestBody)
             .build()
 

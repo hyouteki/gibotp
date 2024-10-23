@@ -50,5 +50,6 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.jetbrains.kotlinx.coroutines.android)
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.google.firebase.messaging)
 
 }
